@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+
+
 contract Escrow {
     enum EscrowStatus { Created, Funded, Released, Refunded, Disputed, Resolved }
 
@@ -95,18 +97,19 @@ contract Escrow {
     }
 
     function requestRefund(uint256 escrowId)
-        external
-        onlyBuyer(escrowId)
-        inStatus(escrowId, EscrowStatus.Funded)
-    {
-        EscrowDetails storage esc = escrows[escrowId];
-        require(block.timestamp >= esc.deadline, "Deadline not passed");
+    external
+    onlyBuyer(escrowId)
+    inStatus(escrowId, EscrowStatus.Funded)
+{
+    EscrowDetails storage esc = escrows[escrowId];
+    
+    require(block.timestamp >= esc.deadline, "Deadline not passed");
+    
+    esc.status = EscrowStatus.Refunded;
+    payable(esc.buyer).transfer(esc.amount);
 
-        esc.status = EscrowStatus.Refunded;
-        payable(esc.buyer).transfer(esc.amount);
-
-        emit Refunded(escrowId, esc.buyer);
-    }
+    emit Refunded(escrowId, esc.buyer);
+}
 
     function resolveDispute(uint256 escrowId, bool releaseToSeller)
         external
