@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-
-
 contract Escrow {
+    // Enum to represent various states of the escrow
     enum EscrowStatus { Created, Funded, Released, Refunded, Disputed, Resolved }
 
+    // Struct to hold details of each escrow transaction
     struct EscrowDetails {
         address buyer;
         address seller;
@@ -17,15 +17,17 @@ contract Escrow {
         bool isDisputed;
     }
 
-    uint256 public escrowCounter;
-    mapping(uint256 => EscrowDetails) public escrows;
+    uint256 public escrowCounter; // Counter to assign unique ID to each escrow
+    mapping(uint256 => EscrowDetails) public escrows; // Mapping of escrow ID to details
 
+    // Events to emit for key actions
     event EscrowCreated(uint256 escrowId, address indexed buyer, address indexed seller, uint256 amount, uint256 deadline, string description);
     event Funded(uint256 escrowId, address indexed buyer, uint256 amount);
     event Released(uint256 escrowId, address indexed seller);
     event Refunded(uint256 escrowId, address indexed buyer);
     event DisputeResolved(uint256 escrowId, address indexed arbiter, bool releasedToSeller);
 
+    // Modifiers to restrict function access
     modifier onlyBuyer(uint256 escrowId) {
         require(msg.sender == escrows[escrowId].buyer, "Only buyer can call this");
         _;
@@ -46,6 +48,7 @@ contract Escrow {
         _;
     }
 
+    // Function to create a new escrow
     function createEscrow(
         address seller,
         address arbiter,
@@ -57,6 +60,7 @@ contract Escrow {
         require(amount > 0, "Amount must be greater than 0");
 
         escrowId = ++escrowCounter;
+
         escrows[escrowId] = EscrowDetails({
             buyer: msg.sender,
             seller: seller,
@@ -71,6 +75,7 @@ contract Escrow {
         emit EscrowCreated(escrowId, msg.sender, seller, amount, deadline, description);
     }
 
+    // Function for buyer to fund the escrow
     function fundEscrow(uint256 escrowId)
         external
         payable
@@ -84,6 +89,7 @@ contract Escrow {
         emit Funded(escrowId, msg.sender, msg.value);
     }
 
+    // Function for seller to release funds
     function releaseFunds(uint256 escrowId)
         external
         onlySeller(escrowId)
@@ -96,21 +102,22 @@ contract Escrow {
         emit Released(escrowId, esc.seller);
     }
 
+    // Function for buyer to request a refund after the deadline
     function requestRefund(uint256 escrowId)
-    external
-    onlyBuyer(escrowId)
-    inStatus(escrowId, EscrowStatus.Funded)
-{
-    EscrowDetails storage esc = escrows[escrowId];
-    
-    require(block.timestamp >= esc.deadline, "Deadline not passed");
-    
-    esc.status = EscrowStatus.Refunded;
-    payable(esc.buyer).transfer(esc.amount);
+        external
+        onlyBuyer(escrowId)
+        inStatus(escrowId, EscrowStatus.Funded)
+    {
+        EscrowDetails storage esc = escrows[escrowId];
+        require(block.timestamp >= esc.deadline, "Deadline not passed");
 
-    emit Refunded(escrowId, esc.buyer);
-}
+        esc.status = EscrowStatus.Refunded;
+        payable(esc.buyer).transfer(esc.amount);
 
+        emit Refunded(escrowId, esc.buyer);
+    }
+
+    // Function for arbiter to resolve disputes and decide who receives the funds
     function resolveDispute(uint256 escrowId, bool releaseToSeller)
         external
         onlyArbiter(escrowId)
@@ -129,6 +136,7 @@ contract Escrow {
         emit DisputeResolved(escrowId, msg.sender, releaseToSeller);
     }
 
+    // View function to get escrow details
     function getEscrowDetails(uint256 escrowId)
         external
         view
